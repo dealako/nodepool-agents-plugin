@@ -24,28 +24,20 @@
 package com.rackspace.jenkins_nodepool;
 
 import hudson.model.Descriptor;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.imps.CuratorFrameworkState;
+import org.junit.*;
+import org.jvnet.hudson.test.JenkinsRule;
+
 import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.imps.CuratorFrameworkState;
-import org.junit.After;
-import org.junit.AfterClass;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.*;
 
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.JenkinsRule;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 /**
  *
@@ -82,7 +74,9 @@ public class NodePoolTest {
                 m.requestor,
                 m.zkNamespace,
                 m.nodeRoot,
-                m.requestTimeout
+                m.requestTimeout,
+                m.jdkInstallationScript,
+                m.jdkHome
         );
     }
 
@@ -230,7 +224,9 @@ public class NodePoolTest {
                 "requestor",
                 "nodepool",
                 "nodes",
-                timeoutInSec
+                timeoutInSec,
+                m.jdkInstallationScript,
+                m.jdkHome
         ));
 
         final NodePoolJob job = new NodePoolJob(m.label, m.task, 1);
@@ -260,7 +256,9 @@ public class NodePoolTest {
                 "requestor",
                 "nodepool",
                 "nodes",
-                timeoutInSec
+                timeoutInSec,
+                m.jdkInstallationScript,
+                m.jdkHome
         ));
 
 
@@ -297,7 +295,9 @@ public class NodePoolTest {
                 "requestor",
                 "nodepool",
                 "nodes",
-                timeoutInSec
+                timeoutInSec,
+                m.jdkInstallationScript,
+                m.jdkHome
         ));
 
 
@@ -347,5 +347,4 @@ public class NodePoolTest {
             //pass
         }
     }
-
 }

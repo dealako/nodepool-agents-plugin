@@ -2,41 +2,74 @@
   Config page
 -->
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout"
-         xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-
+<j:jelly xmlns:j="jelly:core"
+         xmlns:f="/lib/form">
     <f:section title="NodePool Agent Properties">
         NodePool agents/slaves are ephemeral and last for the duration of a single build unless the Hold flag is set.
 
         <f:entry title="${%Hold Node?}" field="held">
-            <f:checkbox readonly="${descriptor.holdReadOnly}"/>
+            <f:checkbox/>
+        </f:entry>
+
+        <f:entry title="${%User Requesting Hold:}">
+            <j:choose>
+                <j:when test="${it.holdUser==null}">
+                    <j:choose>
+                        <j:when test="${it.node.userId.equals('anonymous')}">
+                            ${%anonymous user}
+                            <input type="hidden" name="holdUser" value="${%anonymous user}" />
+                        </j:when>
+                        <j:otherwise>
+                            ${user.displayName}
+                            <input type="hidden" name="holdUser" value="${user.displayName}" />
+                        </j:otherwise>
+                    </j:choose>
+                </j:when>
+                <j:otherwise>
+                    ${it.holdUser}
+                    <input type="hidden" name="holdUser" value="${holdUser}" />
+                </j:otherwise>
+            </j:choose>
+        </f:entry>
+
+        <f:entry title="${%Hold Reason}" field="holdReason">
+            <f:textbox name="holdReason" value="${holdReason}" maxlength="256"/>
         </f:entry>
 
         <f:entry title="${%# of executors}" field="numExecutors">
-            <f:number clazz="non-negative-number-required" min="0" step="1"/>
+            <f:number clazz="non-negative-number-required" min="0" step="1" readonly="readonly" disabled="disabled"
+                      style="background-color: #ededed;"/>
         </f:entry>
     </f:section>
 
-    <f:section title="Connectivity">
-        <f:block>
-            <p><b>IP address:</b> ${it.nodePoolNode.host}</p>
-            <p><b>Port:</b> ${it.nodePoolNode.port}</p>
-        </f:block>
+    <f:section title="${%Connectivity}">
+        <f:entry title="${%IP Address}">
+            ${it.nodePoolNode.host}
+        </f:entry>
+        <f:entry title="${%Port}">
+            ${it.nodePoolNode.port}
+        </f:entry>
     </f:section>
 
-    <f:section title="Labels">
-        <f:block>
-            <p><b>Jenkins label:</b> ${it.nodePoolNode.jenkinsLabel}</p>
-            <p><b>NodePool label:</b> ${it.nodePoolNode.nPType}</p>
-        </f:block>
+    <f:section title="${%Labels}">
+        <f:entry title="${%Jenkins Label}">
+            ${it.nodePoolNode.jenkinsLabel}
+        </f:entry>
+        <f:entry title="${%NodePool Label}">
+            ${it.nodePoolNode.nPType}
+        </f:entry>
     </f:section>
 
-    <f:section title="ZooKeeper">
-        <f:block>
-            <p><b>NodePool connection string: </b> ${it.nodePoolNode.nodePool.connectionString}</p>
-            <p><b>ZooKeeper Path:</b> /nodepool${it.nodePoolNode.path}</p>
-            <p><b>ZooKeeper ID:</b> ${it.nodePoolNode.zKID}</p>
-        </f:block>
+    <f:section title="${%ZooKeeper}">
+        <f:entry title="${%NodePool Connection String}">
+            ${it.nodePoolNode.nodePool.connectionString}
+        </f:entry>
+        <f:entry title="${%ZooKeeper Path}">
+            /nodepool${it.nodePoolNode.path}
+        </f:entry>
+        <f:entry title="${%ZooKeeper ID}">
+            ${it.nodePoolNode.zKID}
+        </f:entry>
     </f:section>
 
 </j:jelly>

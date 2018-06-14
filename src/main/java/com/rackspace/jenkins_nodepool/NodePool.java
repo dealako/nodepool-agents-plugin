@@ -41,7 +41,14 @@ import hudson.security.AccessControlled;
 import hudson.util.FormFieldValidator;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import jenkins.model.Jenkins;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.zookeeper.CreateMode;
+import org.kohsuke.stapler.*;
 
+import javax.servlet.ServletException;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.text.MessageFormat;
@@ -52,18 +59,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.servlet.ServletException;
-
-import jenkins.model.Jenkins;
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.retry.ExponentialBackoffRetry;
-import org.apache.zookeeper.CreateMode;
-import org.kohsuke.stapler.AncestorInPath;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
 
 /**
  * Representation of a ZooKeeper+NodePool cluster configuration.
@@ -163,24 +158,36 @@ public class NodePool implements Describable<NodePool> {
     private String zooKeeperRoot;
 
     /**
+     * The JDK installation script
+     */
+    private String jdkInstallationScript;
+
+    /**
+     * The JDK home installation folder.
+     */
+    private String jdkHome;
+
+    /**
      * Constructor invoked by Jenkins's Stapler library.
      *
-     * @param connectionString ZooKeeper connection string
-     * @param credentialsId    Credential information identifier
-     * @param labelPrefix      Prefix for labels served by this NodePool cluster
-     * @param requestRoot      Prefix of node requests
-     * @param priority         Priority value of node requests
-     * @param requestor        Name of process making node requests
-     * @param zooKeeperRoot    Prefix of all NodePool-related ZNodes
-     * @param nodeRoot         Prefix of nodes
-     * @param requestTimeout   Length of time to wait for node requests to be
-     *                         fulfilled
+     * @param connectionString      ZooKeeper connection string
+     * @param credentialsId         Credential information identifier
+     * @param labelPrefix           Prefix for labels served by this NodePool cluster
+     * @param requestRoot           Prefix of node requests
+     * @param priority              Priority value of node requests
+     * @param requestor             Name of process making node requests
+     * @param zooKeeperRoot         Prefix of all NodePool-related ZNodes
+     * @param nodeRoot              Prefix of nodes
+     * @param requestTimeout        Length of time to wait for node requests to be
+     *                              fulfilled
+     * @param jdkInstallationScript the JDK installation script
+     * @param jdkHome               the JDK home
      */
     @DataBoundConstructor
     public NodePool(String connectionString,
                     String credentialsId, String labelPrefix, String requestRoot,
                     String priority, String requestor, String zooKeeperRoot,
-                    String nodeRoot, Integer requestTimeout) {
+                    String nodeRoot, Integer requestTimeout, String jdkInstallationScript, String jdkHome) {
         this.connectionString = connectionString;
         this.credentialsId = credentialsId;
         this.requestRoot = requestRoot;
@@ -189,6 +196,8 @@ public class NodePool implements Describable<NodePool> {
         this.labelPrefix = labelPrefix;
         this.zooKeeperRoot = zooKeeperRoot;
         this.nodeRoot = nodeRoot;
+        this.jdkInstallationScript = jdkInstallationScript;
+        this.jdkHome = jdkHome;
         setRequestTimeout(requestTimeout);
         initTransients();
     }
@@ -210,7 +219,7 @@ public class NodePool implements Describable<NodePool> {
 
         try {
             for (NodePoolNode node : allocatedNodes) {
-                LOG.log(Level.FINE, "Accepting node {0} on behalf of request {1}", new Object[]{node, request.getZKID()});
+                LOG.log(Level.INFO, String.format("Accepting node %s on behalf of request %s", node, request.getZKID()));
 
                 node.setInUse(); // TODO: debug making sure this lock stuff actually works
 
@@ -224,6 +233,7 @@ public class NodePool implements Describable<NodePool> {
             // roll back acceptance on any nodes we managed to successfully accept
             for (NodePoolNode acceptedNode : acceptedNodes) {
                 try {
+                    LOG.log(Level.INFO, String.format("Releasing node %s on behalf of request %s", acceptedNode, request.getZKID()));
                     acceptedNode.release();
 
                 } catch (Exception lockException) {
@@ -268,6 +278,24 @@ public class NodePool implements Describable<NodePool> {
 
     public String getCredentialsId() {
         return credentialsId;
+    }
+
+    /**
+     * Returns the JDK installation script.
+     *
+     * @return the JDK installation script.
+     */
+    public String getJdkInstallationScript() {
+        return jdkInstallationScript;
+    }
+
+    /**
+     * Returns the JDK Home for this node.
+     *
+     * @return the JDK home for his node.
+     */
+    public String getJdkHome() {
+        return jdkHome;
     }
 
     @Override
@@ -403,13 +431,17 @@ public class NodePool implements Describable<NodePool> {
      * @param job          job/task/build being executed
      * @param timeoutInSec the timeout in seconds to provision the node(s)
      * @param maxAttempts  maximum number of times to try to provision the node
-     * @throws IllegalArgumentException if timeout is less than 1 second
+     * @throws IllegalArgumentException if timeout is less than 1 second or if the maxAttempts is less than 1
      * @throws NodePoolException        if an error occurs managing the provision components
      */
     void provisionNode(NodePoolJob job, int timeoutInSec, int maxAttempts) throws NodePoolException {
 
         if (timeoutInSec < 1) {
             throw new IllegalArgumentException("Timeout value is less than 1 second: " + timeoutInSec);
+        }
+
+        if (maxAttempts < 1) {
+            throw new IllegalArgumentException("Maximum attempts value is less than 1: " + maxAttempts);
         }
 
         initTransients();
@@ -420,12 +452,12 @@ public class NodePool implements Describable<NodePool> {
                 break;
 
             } catch (Exception e) {
-                LOG.log(Level.WARNING, "Node provisioning attempt for task :" + job.getTask().getName()
-                        + " failed.", e);
+                LOG.log(Level.WARNING, String.format("Node provisioning attempt for task: %s failed. Message: %s",
+                        job.getTask().getName(), e.getLocalizedMessage()));
 
-                if (i == maxAttempts - 1) {
-                    throw new NodePoolException("Maximum attempts (" + maxAttempts + ") exceeded.  (Final error in "
-                            + "stack trace)", e);
+                if (i + 1 == maxAttempts) {
+                    throw new NodePoolException(String.format("Maximum attempts exceeded: %d out of %d.",
+                            (i + 1), maxAttempts));
                 }
             }
         }
@@ -442,15 +474,15 @@ public class NodePool implements Describable<NodePool> {
 
         final Task task = job.getTask();
 
-        LOG.info("Waiting on node to become available for task:" + task.getName() +
-                " with label:" + job.getLabel() + ", timeout is " + timeoutInSec + " seconds...");
+        LOG.info(String.format("Waiting on node to become available for task: %s with label: %s with timeout: %d seconds...",
+                task.getName(), job.getLabel(), timeoutInSec));
 
         final NodeRequest request = createNodeRequest(task);
         requests.add(request);
+
         try {
             job.addAttempt(request);
             attemptProvisionNode2(request, timeoutInSec);
-
         } catch (Exception e) {
             // provisioning attempt failed
             job.failAttempt(e);
@@ -500,9 +532,14 @@ public class NodePool implements Describable<NodePool> {
 
                 // Get allocated nodes from the request and add to Jenkins
                 for (NodePoolNode node : allocatedNodes) {
+
                     final NodePoolSlave nps = new NodePoolSlave(node, getCredentialsId());
                     Jenkins.getInstance().addNode(nps);
-                    LOG.log(Level.INFO, "Added NodePool slave to Jenkins: {0}", nps);
+                    LOG.log(Level.INFO, "NodePoolSlave instance " + nps.getNodePoolNode().getName() +
+                            " with host: " + nps.getNodePoolNode().getHost() +
+                            " with label: " + request.getJenkinsLabel().getDisplayName() +
+                            " from task: " + request.getTask().getName() +
+                            " is ready...adding slave to Jenkins");
                 }
 
             } catch (Exception e) {

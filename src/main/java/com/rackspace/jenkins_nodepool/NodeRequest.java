@@ -26,6 +26,8 @@ package com.rackspace.jenkins_nodepool;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.model.Label;
 import hudson.model.Queue.Task;
+import org.apache.zookeeper.CreateMode;
+
 import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -34,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.zookeeper.CreateMode;
 
 /**
  * Represents a nodepool node request. Data format is JSON dump of following
@@ -163,17 +164,27 @@ public class NodeRequest extends ZooKeeperObject {
         data.put("state", RequestState.valueOf(stateString));
     }
 
+    /**
+     * Returns the node pool label for the node request.
+     *
+     * @return the node pool label
+     */
     public String getNodePoolLabel() {
         final List<String> labels = (List<String>) data.get("node_types");
         return labels.get(0);
     }
 
+    /**
+     * Returns the jenkins label for this node request.
+     *
+     * @return the jenkins label
+     */
     public Label getJenkinsLabel() {
         return task.getAssignedLabel();
     }
 
     public String getAge() {
-        Duration d = Duration.ofMillis(System.currentTimeMillis() - startTime);
+        final Duration d = Duration.ofMillis(System.currentTimeMillis() - startTime);
         long s = d.getSeconds();
         if (s < 60) {
             return MessageFormat.format("{0}s", d.getSeconds());

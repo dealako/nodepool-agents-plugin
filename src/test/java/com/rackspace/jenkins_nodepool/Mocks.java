@@ -28,6 +28,11 @@ import hudson.model.Label;
 import hudson.model.Queue;
 import hudson.model.Queue.Task;
 import hudson.model.labels.LabelAtom;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.curator.test.TestingServer;
+
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.text.MessageFormat;
@@ -37,10 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.retry.ExponentialBackoffRetry;
-import org.apache.curator.test.TestingServer;
+
 import static org.mockito.Mockito.*;
 
 /**
@@ -79,6 +81,8 @@ public class Mocks {
     NodeRequest nr;
     List<NodePoolNode> allocatedNodes;
     Integer requestTimeout;
+    String jdkInstallationScript;
+    String jdkHome;
 
     public Mocks() {
         requestTimeout = 30;
@@ -106,6 +110,9 @@ public class Mocks {
         nps = mock(NodePoolSlave.class);
         nr = mock(NodeRequest.class);
         npc = mock(NodePoolComputer.class);
+        jdkInstallationScript = "apt-get update && apt-get install openjdk-8-jre-headless -y";
+        jdkHome = "/usr/lib/jvm/java-8-openjdk-amd64";
+
         startTestServer();
         when(npn.getName()).thenReturn(npcName);
         // final, can't be mocked: when(nps.toComputer()).thenReturn(npc);

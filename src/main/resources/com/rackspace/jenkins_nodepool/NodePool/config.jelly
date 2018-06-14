@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:c="/lib/credentials" xmlns:st="jelly:stapler">
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
         <f:entry title="Zookeeper Connection String" field="connectionString">
             <f:textbox/>
         </f:entry>
@@ -34,6 +34,12 @@
             </f:entry>
             <f:entry title="Priority" field="priority">
                 <f:textbox default="100"></f:textbox>
+            </f:entry>
+            <f:entry title="JDK/JRE Installation Script" field="jdkInstallationScript">
+                <f:textarea name="jdkInstallationScript" value="${jdkInstallationScript}" class="fixed-width" />
+            </f:entry>
+            <f:entry title="JDK/JRE Home" field="jdkHome">
+                <f:textbox name="jdkHome" value="${jdkHome}"/>
             </f:entry>
         </f:advanced>
 </j:jelly>  

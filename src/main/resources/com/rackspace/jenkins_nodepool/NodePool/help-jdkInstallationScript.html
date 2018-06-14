@@ -23,5 +23,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <div>
-    Specifies the number of executors allowed on this node.  This value must be a positive integer.  Currently disabled.
+    An optional script to run for installing the JRE or JDK during the NodePool setup phase. For example: 'apt-get
+    update && apt-get install openjdk-8-jre-headless -y'. If none provided, the default Ubuntu OpenJDK 8 JRE will be
+    installed.  This script will only run if an existing java is not found.  If java is pre-installed, then the existing
+    java is used for the Jenkins agent launch.
 </div>

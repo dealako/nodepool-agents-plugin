@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:l="/lib/layout">
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:l="/lib/layout" xmlns:f="/lib/form">
 
     <l:layout norefresh="true" permission="${app.READ}" title="NodePool View">
         <st:include page="sidepanel.jelly" it="${app}"/>
@@ -98,6 +98,13 @@
                         </j:forEach>
                     </tbody>
                 </table>
+                <j:if test="${app.hasPermission(app.ADMINISTER)}">
+                    <div align="right" style="margin-top:0.5em">
+                        <form method="post" action="updateNow">
+                            <f:submit value="${%Refresh View}"/>
+                        </form>
+                    </div>
+                </j:if>
             </div>
         </l:main-panel>
     </l:layout>

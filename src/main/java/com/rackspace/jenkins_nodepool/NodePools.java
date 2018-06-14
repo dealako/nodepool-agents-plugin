@@ -25,10 +25,14 @@ package com.rackspace.jenkins_nodepool;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
-import hudson.model.FreeStyleProject;
 import hudson.model.Label;
-import hudson.model.Queue;
 import hudson.model.Queue.Task;
+import jenkins.model.GlobalConfiguration;
+import jenkins.model.Jenkins;
+import net.sf.json.JSONObject;
+import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.StaplerRequest;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -38,17 +42,9 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import hudson.model.labels.LabelAtom;
-import jenkins.model.GlobalConfiguration;
-import jenkins.model.Jenkins;
-import net.sf.json.JSONObject;
-import org.kohsuke.stapler.DataBoundSetter;
-import org.kohsuke.stapler.StaplerRequest;
-
 /**
  * Top level Jenkins configuration class to manage all NodePool configuration
  */
-
 @Extension
 public class NodePools extends GlobalConfiguration implements Iterable<NodePool> {
 
@@ -72,23 +68,22 @@ public class NodePools extends GlobalConfiguration implements Iterable<NodePool>
     }
 
     // Called for deserialisation
-    public void readObject(java.io.ObjectInputStream in)
-            throws IOException, ClassNotFoundException {
+    public void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
         in.defaultReadObject(); // call default deserializer
         initTransients();
     }
 
     private void initTransients() {
         if (nodePools == null) {
-            nodePools = new ArrayList();
+            nodePools = new ArrayList<NodePool>();
         }
     }
-
 
     @Override
     @SuppressFBWarnings("UC_USELESS_OBJECT")
     public boolean configure(StaplerRequest req, JSONObject json) throws FormException {
-        List<NodePool> removedNodePools = new ArrayList(nodePools);
+        final List<NodePool> removedNodePools = new ArrayList<NodePool>(nodePools);
+
         // req.bindJSON is the only thing the super method does.
         // We need to store the old list before binding the new
         // data so we can't use the super() call.
@@ -104,11 +99,13 @@ public class NodePools extends GlobalConfiguration implements Iterable<NodePool>
             nodePools.clear();
         }
         save();
+
         removedNodePools.removeAll(nodePools);
         // removedNodePools now contains all the nodePools
         // that have been removed. They should be cleaned up
         // so connections are closed etc
         removedNodePools.forEach((np) -> np.cleanup());
+
         return true;
     }
 
@@ -120,6 +117,13 @@ public class NodePools extends GlobalConfiguration implements Iterable<NodePool>
     public Iterator<NodePool> iterator() {
         return nodePools.iterator();
     }
+
+    /**
+     * Returns a list of NodePool objects that match the specified label.
+     *
+     * @param label the label to match
+     * @return a list of zero or more matching NodePool objects
+     */
     public List<NodePool> nodePoolsForLabel(Label label) {
         return stream()
                 .filter((NodePool np) -> label.getName().startsWith(np.getLabelPrefix()))
@@ -127,14 +131,15 @@ public class NodePools extends GlobalConfiguration implements Iterable<NodePool>
     }
 
     /**
-     * Submit request for node(s) required to execute the given task based on the nodes associated with the specified
-     * label.
+     * Submit request for node(s) required to execute the given task based on the
+     * nodes associated with the specified label.
      *
-     * @param label        the label attribute to filter the list of available nodes
-     * @param task         the task to execute
-     * @param taskId       unique integer identifying the task
+     * @param label  the label attribute to filter the list of available nodes
+     * @param task   the task to execute
+     * @param taskId unique integer identifying the task
      * @throws IllegalArgumentException if timeout is less than 1 second
-     * @throws Exception                   if an error occurs managing the provision components
+     * @throws Exception                if an error occurs managing the provision
+     *                                  components
      */
     public void provisionNode(Label label, Task task, long taskId) throws IllegalArgumentException, Exception {
 

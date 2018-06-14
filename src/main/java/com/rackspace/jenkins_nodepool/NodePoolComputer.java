@@ -25,16 +25,15 @@ package com.rackspace.jenkins_nodepool;
 
 import hudson.model.*;
 import hudson.slaves.SlaveComputer;
+import hudson.util.RunList;
+import org.kohsuke.stapler.HttpResponse;
+
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import hudson.util.RunList;
-import org.kohsuke.stapler.HttpResponse;
-
 /**
- *
  * @author hughsaunders
  */
 public class NodePoolComputer extends SlaveComputer {
@@ -61,8 +60,8 @@ public class NodePoolComputer extends SlaveComputer {
         if (npn != null) {
             name = npn.getName();
         } else {
-        Computer.threadPoolForRemoting.submit(() -> {
-            try {
+            Computer.threadPoolForRemoting.submit(() -> {
+                try {
                     LOG.log(Level.WARNING, "Removing NodePool Computer {0} on startup as its a nodepool node that will have been destroyed", this.toString());
                     doDoDelete();
                 } catch (IOException ex) {
@@ -84,12 +83,18 @@ public class NodePoolComputer extends SlaveComputer {
     @Override
     public HttpResponse doDoDelete() throws IOException {
         try {
-            if (nodePoolNode != null) {
+            if (nodePoolNode == null) {
+                LOG.log(Level.WARNING, "Nodepool reference is null - unable to release nodepool reference.");
+            }
+            else {
                 nodePoolNode.release();
             }
         } catch (Exception ex) {
-            LOG.log(Level.SEVERE, null, ex);
+            LOG.log(Level.WARNING, ex.getClass().getSimpleName() + " exception while releasing nodepool node: " +
+                    (nodePoolNode == null ? "nodepool node name is null" : nodePoolNode.getName()) + "." +
+                    " Message: " + ex.getLocalizedMessage());
         }
+
         return super.doDoDelete();
     }
 
@@ -130,7 +135,7 @@ public class NodePoolComputer extends SlaveComputer {
     public void taskCompletedWithProblems(Executor executor, Queue.Task task, long durationMS, Throwable problems) {
         super.taskCompletedWithProblems(executor, task, durationMS, problems);
 
-        LOG.log(Level.FINE, "Task " + task.getFullDisplayName() + " completed with problems", problems);
+        LOG.log(Level.WARNING, "Task " + task.getFullDisplayName() + " completed with problems: ", problems);
         saveTaskHistory(executor, task);
         postBuildCleanup(executor, task);
     }
@@ -139,7 +144,7 @@ public class NodePoolComputer extends SlaveComputer {
      * Associate job run/build information with a task that was previously queued.
      *
      * @param executor executor that will run the task
-     * @param task task getting run
+     * @param task     task getting run
      */
     public void saveTaskHistory(Executor executor, Queue.Task task) {
         final NodePoolJobHistory jobHistory = NodePools.get().getJobHistory();
@@ -164,7 +169,7 @@ public class NodePoolComputer extends SlaveComputer {
 
     private void postBuildCleanup(Executor executor, Queue.Task task) {
         final NodePoolComputer c = (NodePoolComputer) executor.getOwner();
-        final NodePoolSlave slave = (NodePoolSlave)c.getNode();
+        final NodePoolSlave slave = (NodePoolSlave) c.getNode();
         if (slave == null) {
             LOG.log(Level.WARNING, "The computer : " + c + " has a null slave associated with it.");
             return;
@@ -201,6 +206,8 @@ public class NodePoolComputer extends SlaveComputer {
                         + ".  NodePool may delete it.", e);
             }
         } else {
+            LOG.log(Level.FINE, "postBuildCleanup invoked on node " + slave.getDisplayName() +
+                    ". Calling delete node...");
             deleteNodePoolComputer(c, task);
         }
 
@@ -208,14 +215,20 @@ public class NodePoolComputer extends SlaveComputer {
 
     void deleteNodePoolComputer(NodePoolComputer computer, Queue.Task task) {
 
-        LOG.log(Level.INFO, "Deleting NodePoolNode {0} after task {1}", new Object[]{computer,
+        LOG.log(Level.INFO, "Deleting NodePoolNode: {0} after task: {1}", new Object[]{computer,
                 task.getFullDisplayName()});
 
         Computer.threadPoolForRemoting.submit(() -> {
             try {
-                computer.doDoDelete();
+                if (computer == null) {
+                    LOG.log(Level.WARNING, "Unable to delete NodePool node - computer reference is null");
+                } else {
+                    computer.doDoDelete();
+                }
             } catch (IOException ex) {
-                LOG.log(Level.SEVERE, null, ex);
+                LOG.log(Level.WARNING,
+                        String.format("%s error while deleting node. Message: %s. Was it already deleted?",
+                                ex.getClass().getSimpleName(), ex.getLocalizedMessage()));
             }
         });
     }

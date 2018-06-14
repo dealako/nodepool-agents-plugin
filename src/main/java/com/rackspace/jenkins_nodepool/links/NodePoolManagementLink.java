@@ -4,8 +4,14 @@ import com.rackspace.jenkins_nodepool.NodePool;
 import com.rackspace.jenkins_nodepool.NodePoolJobHistory;
 import com.rackspace.jenkins_nodepool.NodePools;
 import hudson.Extension;
+import jenkins.model.Jenkins;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.CheckForNull;
+import javax.servlet.ServletException;
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -46,5 +52,19 @@ public class NodePoolManagementLink extends hudson.model.ManagementLink {
     public NodePoolJobHistory getJobHistory() {
         final NodePools nodePools = NodePools.get();
         return nodePools.getJobHistory();
+    }
+
+    /**
+     * Triggers/Performs the page update now.
+     *
+     * @param req the stapler request object
+     * @param rsp the stapler response object
+     * @throws IOException if an error occurs dispatching the request
+     * @throws ServletException if an error occurs dispatching the request
+     */
+    @RequirePOST
+    public void doUpdateNow(StaplerRequest req, StaplerResponse rsp ) throws IOException, ServletException {
+        Jenkins.getInstance().checkPermission(Jenkins.ADMINISTER);
+        rsp.forwardToPreviousPage(req);
     }
 }

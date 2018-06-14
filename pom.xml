@@ -8,7 +8,7 @@
         <relativePath />
     </parent>
     <artifactId>nodepool-agents</artifactId>
-    <version>0.0.11-SNAPSHOT</version>
+    <version>0.0.12-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <properties>
         <jenkins.version>2.60.3</jenkins.version>
@@ -26,24 +26,29 @@
     </licenses>
 
     <developers>
-      <developer>
-        <id>hsaunders</id>
-        <name>Hugh Saunders</name>
-        <email>hugh.saunders@rackspace.com</email>
-      </developer>
-      <developer>
-        <id>bdelliott</id>
-        <name>Brian D. Elliott</name>
-        <email>brian.elliott@rackspace.com</email>
-      </developer>
+        <developer>
+            <id>hsaunders</id>
+            <name>Hugh Saunders</name>
+            <email>hugh.saunders@rackspace.com</email>
+        </developer>
+        <developer>
+            <id>bdelliott</id>
+            <name>Brian D. Elliott</name>
+            <email>brian.elliott@rackspace.com</email>
+        </developer>
+        <developer>
+            <id>ddeal</id>
+            <name>David Deal</name>
+            <email>david.deal@rackspace.com</email>
+        </developer>
     </developers>
 
     <scm>
         <connection>scm:git:git://github.com/jenkinsci/${project.artifactId}-plugin.git</connection>
         <developerConnection>scm:git:git@github.com:jenkinsci/${project.artifactId}-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
-      <tag>HEAD</tag>
-  </scm>
+        <tag>HEAD</tag>
+    </scm>
 
     <repositories>
         <repository>
@@ -67,12 +72,50 @@
             </snapshots>
         </repository>
     </repositories>
+
     <pluginRepositories>
         <pluginRepository>
             <id>repo.jenkins-ci.org</id>
             <url>https://repo.jenkins-ci.org/public/</url>
         </pluginRepository>
     </pluginRepositories>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-maven-plugin</artifactId>
+                <version>9.4.10.v20180503</version>
+                <configuration>
+                    <scanIntervalSeconds>10</scanIntervalSeconds>
+                    <webApp>
+                        <contextPath>/jenkins</contextPath>
+                    </webApp>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>properties-maven-plugin</artifactId>
+                <version>1.0-alpha-2</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>set-system-properties</goal>
+                        </goals>
+                        <configuration>
+                            <properties>
+                                <property>
+                                    <name>java.util.logging.SimpleFormatter.format</name>
+                                    <value>[%1$tY-%1$tm-%1$tdT%1$tH:%1$tM:%1$tS%tz][%4$s] %2$s %5$s%6$s%n</value>
+                                </property>
+                            </properties>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
     <dependencies>
         <dependency>
             <groupId>com.google.code.gson</groupId>
@@ -144,4 +187,14 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <reporting>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>findbugs-maven-plugin</artifactId>
+                <version>3.0.5</version>
+            </plugin>
+        </plugins>
+    </reporting>
 </project>
